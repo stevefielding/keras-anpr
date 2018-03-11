@@ -26,7 +26,7 @@ and [Number Plate Recogntion with Tensorflow](https://matthewearl.github.io/2016
 
 ##### Limitations
 The provided dataset only contains California license plates with 7 characters per plate. Ideally the character detector 
-would be able to classify plates with less than 7 characters. This [paper]((https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/42241.pdf))
+would be able to classify plates with less than 7 characters. This [paper](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/42241.pdf)
 explains how to use the ouput layer to identify the number of characters, but I encountered a number of issues in attempting to implement this scheme. 
 * I could not figure out how to configure the Keras output layer with the character count.
 * Training back prop must be disabled for output characters that are not present. I could not figure how to do this in Keras.
