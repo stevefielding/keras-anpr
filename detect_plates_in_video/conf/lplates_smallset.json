@@ -1,0 +1,36 @@
+{
+  #######
+  # DATASET SAMPLING CONFIGURATION
+  #######
+  "input_video_path": "../../datasets/lplates_smallset/auto_labelled/video", # input video files. Image files assumed to be in sub-dir, typically labelled with date
+  "output_image_path": "../../datasets/lplates_smallset/auto_labelled/images_from_video", # output images
+  "output_cropped_image_path": "../../datasets/lplates_smallset/auto_labelled/images_from_video_cropped", # output cropped images
+  "save_video_path": "../../datasets/lplates_smallset/auto_labelled/video_save", # saved video files
+
+  #######
+  # Run CONFIGURATION
+  #######
+  "infinite_main_loop": "false", # enable infinite main loop if detect.py is working with continuous live data from the camera
+  "display_video_enable": "false", # enable display of input video
+  "removeOverlay": "false", # remove Sunba overlay text. Overlay can be disabled in Sunba config, so set to false
+  "saveAnnotatedImage": "false", # output files from detect.py can optionally be annotated with LP bounding box and LP chars
+  "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
+  "move_video_file": "true", # move video file to new location after finished processing
+  "searchCropFactorX": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
+  "searchCropFactorY": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
+  "frameDecimationFactor": 4, # decimate the frame rate to reduce the processing load
+  "samePlateMaxDist": 300, # Maximum distance between plates in consecutive farmes, and still considered the same plate
+  "detectLicenseText": "true", # detect license text after the license plate has been located
+  "plateMargin": 10, # Add an extra margin around the cropped plate image. This allows extra room for image aug during training
+
+  #######
+  # lpd CONFIGURATION
+  #######
+
+  "dlib_SVM_detector":"../dlib_plate_detector/plateDetector.svm", # dlib SVM detector config
+
+  #######
+  # CNN model CONFIGURATION
+  #######
+  "model":"../models/save/model-5999-0.1340_lr_0.003_do_0.7_do_0.5_artificial_aug_no_l2reg.hdf5"
+}
