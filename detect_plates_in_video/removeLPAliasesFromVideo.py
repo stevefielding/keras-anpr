@@ -21,11 +21,13 @@ import shutil
 import time
 import os
 import sys
-
 import cv2
 from imutils import paths
 from keras.models import load_model
 from keras.utils import plot_model
+
+# enable search for base2designs module directory in parent directory
+sys.path.append(os.path.split(os.getcwd())[0])
 
 from base2designs.datasets import AnprLabelProcessor
 from base2designs.utils.charClassifier import CharClassifier
