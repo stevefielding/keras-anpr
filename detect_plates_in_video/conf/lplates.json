@@ -27,10 +27,10 @@
   # lpd CONFIGURATION
   #######
 
-  "dlib_SVM_detector":"dlib_plate_detector/plateDetector.svm", # dlib SVM detector config
+  "dlib_SVM_detector":"../dlib_plate_detector/plateDetector.svm", # dlib SVM detector config
 
   #######
   # CNN model CONFIGURATION
   #######
-  "model":"models/save/model-5999-0.1340_lr_0.003_do_0.7_do_0.5_artificial_aug_no_l2reg.hdf5"
+  "model":"../models/save/model-5999-0.1340_lr_0.003_do_0.7_do_0.5_artificial_aug_no_l2reg.hdf5"
 }

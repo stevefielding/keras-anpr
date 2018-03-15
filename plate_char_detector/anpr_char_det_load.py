@@ -8,6 +8,10 @@
 # Generate and display summary of prediction results and display 5 random plate results
 
 # import the necessary packages
+import os
+import sys
+# enable search for base2designs module directory in parent directory
+sys.path.append(os.path.split(os.getcwd())[0])
 from base2designs.preprocessing import ImageToArrayPreprocessor
 from base2designs.preprocessing import SimplePreprocessor
 from base2designs.datasets import AnprLabelProcessor
@@ -18,8 +22,6 @@ import cv2
 from skimage import img_as_ubyte
 from keras.utils import plot_model
 from keras.models import load_model
-import sys
-import os
 import shutil
 
 # construct the argument parse and parse the arguments

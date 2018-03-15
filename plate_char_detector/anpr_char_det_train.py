@@ -24,11 +24,6 @@
 
 # import the necessary packages
 from sklearn.model_selection import train_test_split
-from base2designs.preprocessing import ImageToArrayPreprocessor
-from base2designs.preprocessing import SimplePreprocessor
-from base2designs.datasets import AnprLabelProcessor
-from base2designs.datasets import AnprDatasetLoader
-from base2designs.nn.conv import AnprCharDet
 from keras.optimizers import SGD
 from keras.preprocessing.image import ImageDataGenerator
 from keras import losses
@@ -43,6 +38,13 @@ import os
 import sys
 from keras.callbacks import ModelCheckpoint
 from keras import regularizers
+# enable search for base2designs module directory in parent directory
+sys.path.append(os.path.split(os.getcwd())[0])
+from base2designs.preprocessing import ImageToArrayPreprocessor
+from base2designs.preprocessing import SimplePreprocessor
+from base2designs.datasets import AnprLabelProcessor
+from base2designs.datasets import AnprDatasetLoader
+from base2designs.nn.conv import AnprCharDet
 
 def plot(H, epochs, filename):
   # plot the training loss and accuracy

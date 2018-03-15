@@ -22,6 +22,7 @@ import time
 import os
 import sys
 import cv2
+import re
 from imutils import paths
 from keras.models import load_model
 from keras.utils import plot_model
@@ -71,13 +72,23 @@ NUM_CHAR_CLASSES = len(plateChars)
 # convert the labels from integers to one-hot vectors
 alp = AnprLabelProcessor(plateChars, plateLens)
 
+# open the logFile, create if it does not exist
+logFilePath = "{}/{}" .format(conf["output_image_path"], conf["log_file_name"])
+if (os.path.isdir(conf["output_image_path"]) != True):
+  os.makedirs(conf["output_image_path"])
+if os.path.exists(logFilePath) == False:
+  logFile = open(logFilePath, "w")
+else:
+  logFile = open(logFilePath, "a")
+
 # load the pre-trained char classifier network, and init the char classifier utility
 print("[INFO] loading pre-trained network...")
 ccModel = load_model(conf["model"])
 plot_model(ccModel, to_file="anprCharDet.png", show_shapes=True)
-cc = CharClassifier(alp, ccModel, conf["output_image_path"], conf["output_cropped_image_path"],
+cc = CharClassifier(alp, ccModel, conf["output_image_path"], conf["output_cropped_image_path"], logFile,
                     saveAnnotatedImage=conf["saveAnnotatedImage"] == "true",
                     preprocessors=[sp,iap], croppedImagePreprocessors=[sp])
+
 
 quit = False
 while True:
@@ -91,7 +102,11 @@ while True:
     start_time = time.time()
     frameCount = 0
     frameDecCnt = 1
-    destFolderRootName = imagePath.split("/")[-2] #assumes video stored in sub-directory
+    m = re.search(r"([0-9]{4}[-_][0-9]{2}[-_][0-9]{2})",imagePath)
+    if m:
+      destFolderRootName = m.group(1) #assumes video stored in sub-directory
+    else:
+      destFolderRootName = "YYYY-MM-DD"
     folderController.createDestFolders(destFolderRootName, conf["save_video_path"],
                                        conf["output_image_path"], conf["output_cropped_image_path"])
     vs = cv2.VideoCapture(imagePath)
@@ -114,7 +129,9 @@ while True:
         # a single sequence, and the sequence is not terminated
         if findFrameWithPlate.plateSeqUnTerminated == True:
           (bestImage, minDistToFrameCentre, licensePlateList, outputFileName) = findFrameWithPlate.getBestFrame()
-          cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName, imageDebugEnable=conf["imageDebugEnable"]=="true")
+          cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName, frameCount,
+                              imagePath[imagePath.rfind("/") + 1:],
+                              margin=conf["plateMargin"], imageDebugEnable=conf["imageDebugEnable"]=="true")
           validImages += 1
         # copy video clip from input directory to saveVideoDir
         outputPathSaveOriginalImage = conf["save_video_path"] + "/" + destFolderRootName + imagePath[imagePath.rfind("/") + 0:]
@@ -139,7 +156,8 @@ while True:
         # if there are any valid results, save the cropped image to file
         if bestPlateFound == True:
           (bestImage, minDistToFrameCentre, licensePlateList, outputFileName) = findFrameWithPlate.getBestFrame()
-          cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName,
+          cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName, frameCount,
+                              imagePath[imagePath.rfind("/") + 1:],
                               margin=conf["plateMargin"], imageDebugEnable=conf["imageDebugEnable"]=="true")
           validImages += 1
         # show the frame and record if the user presses a key
@@ -168,3 +186,5 @@ while True:
 # close any open windows
 print("validImages: {}, totalFrameCount: {}".format(validImages, totalFrameCount))
 cv2.destroyAllWindows()
+logFile.close()
+

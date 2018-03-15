@@ -11,12 +11,15 @@
 # and the filename contains the plate text
 
 # import the necessary packages
+import os
+import sys
+# enable search for base2designs module directory in parent directory
+sys.path.append(os.path.split(os.getcwd())[0])
 from base2designs.preprocessing import SimplePreprocessor
 from base2designs.datasets import AnprDatasetLoader
 import argparse
 import cv2
-import os
-import sys
+
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()

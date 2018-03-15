@@ -6,6 +6,7 @@
   "output_image_path": "../../datasets/lplates_smallset/auto_labelled/images_from_video", # output images
   "output_cropped_image_path": "../../datasets/lplates_smallset/auto_labelled/images_from_video_cropped", # output cropped images
   "save_video_path": "../../datasets/lplates_smallset/auto_labelled/video_save", # saved video files
+  "log_file_name":"lplateLogSmall.txt", # log file for saving list of plates, frame counts and filename
 
   #######
   # Run CONFIGURATION

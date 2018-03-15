@@ -1,10 +1,11 @@
 
 import numpy as np
 import cv2
+import re
 
 class CharClassifier:
   def __init__(self, labelProcessor, charClassifierModel, output_image_path,
-               output_cropped_image_path, saveAnnotatedImage=False, preprocessors=None, croppedImagePreprocessors=None):
+               output_cropped_image_path, logFile, saveAnnotatedImage=False, preprocessors=None, croppedImagePreprocessors=None):
     # store the labelProcessor
     self.labelProcessor = labelProcessor
 
@@ -13,6 +14,7 @@ class CharClassifier:
 
     self.output_image_path = output_image_path
     self.output_cropped_image_path = output_cropped_image_path
+    self.logFile = logFile
     self.saveAnnotatedImage = saveAnnotatedImage
 
     # store the image preprocessors
@@ -48,7 +50,7 @@ class CharClassifier:
   #   print the plate text
   #   save the image
   # Return plateList
-  def findCharsInPlate(self, bestImage, licensePlateList, outputFileName, destFolderRootName, margin=0, imageDebugEnable=False):
+  def findCharsInPlate(self, bestImage, licensePlateList, outputFileName, destFolderRootName, frameCount, videoFileName, margin=0, imageDebugEnable=False):
     outputFullImageFileName = outputFileName
     plateList = []
     lpBoxes = [i[2] for i in licensePlateList]
@@ -98,5 +100,19 @@ class CharClassifier:
     print("[INFO] logging image to file: {}".format(outputFullImageFileName))
     outputPath = "{}/{}/{}.jpg".format(self.output_image_path, destFolderRootName, outputFullImageFileName)
     cv2.imwrite(outputPath, bestImage)
+
+    # update the log file
+    # videoFileName, imageFileName, date, time, frameNumber, plateText
+    # lplate_toy_video4.mp4,2018_01_01/lplate_toy_video.mp4_51.jpg,2018_01_10,5:05,271,5HUY634,5JHY768
+    imageFileName = "{}/{}.jpg".format(destFolderRootName, outputFullImageFileName)
+    date = destFolderRootName
+    m = re.search(r"^([0-9]{2}[.:][0-9]{2}[.:][0-9]{2})",videoFileName)
+    if m:
+      time = m.group(1)
+    else:
+      time = "HH.MM.SS"
+    self.logFile.write("{},{},{},{},{},{}\n".format(videoFileName, imageFileName, date, time, frameCount, ','.join(plateList)))
+    self.logFile.flush()
+
     return plateList
 
