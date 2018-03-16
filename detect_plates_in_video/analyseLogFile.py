@@ -26,9 +26,9 @@ args = vars(ap.parse_args())
 if os.path.exists(args["logFile"]) == False:
   print("[ERROR]: --logFile \"{}\" does not exist".format(args["logFile"]))
   sys.exit()
-#if os.path.exists(args["reportFile"]) == True:
-#  print("[ERROR]: --reportFile \"{}\" already exists. Delete first".format(args["logFile"]))
-#  sys.exit()
+if os.path.exists(args["reportFile"]) == True:
+  print("[ERROR]: --reportFile \"{}\" already exists. Delete first".format(args["reportFile"]))
+  sys.exit()
 
 
 # read the log file
@@ -47,7 +47,7 @@ for logLine in logsSplit:
   time = logLine[3]
   frameNum = logLine[4]
   plateTexts = logLine[5:]
-  print(logLine)
+  #print(logLine)
   for plateText in plateTexts:
     if plateText in plateDict:
       # plateText, videoFileName, imageFileName, date, time, frameNumber
@@ -56,7 +56,9 @@ for logLine in logsSplit:
       plateDict[plateText] = [[plateText, logLine[0], logLine[1], logLine[2], logLine[3], int(logLine[4])]]
 
 # combine dictionary keys that match by at least 5 chars
+combinedSimilarPlateCnt = 0
 plateDictDeDuped = copy.deepcopy(plateDict)
+#plateDictDeDuped = {}
 plateDict2 = copy.deepcopy(plateDict)
 for plateText1 in plateDict.keys():
   del plateDict2[plateText1]
@@ -66,10 +68,19 @@ for plateText1 in plateDict.keys():
       if plateText1[i] == plateText2[i]:
         matchCnt += 1
     if matchCnt >= 5:
-      entryAdds = plateDict[plateText2]
-      for entryAdd in entryAdds:
-        plateDictDeDuped[plateText1].append(entryAdd)
-      del plateDictDeDuped[plateText2]
+      # check if plateText2 is in the plateDictDuped. If not then it has already been claimed as a duplicate by
+      # another plate, and is not available.
+      # If it is available, then copy to dict values at plateText1 and remove plateText2 key
+      if plateText2 in plateDictDeDuped.keys():
+        entryAdds = plateDict[plateText2]
+        for entryAdd in entryAdds:
+          # if plateText1 key has been deleted, then add it back again
+          if plateText1 in plateDictDeDuped.keys():
+            plateDictDeDuped[plateText1].append(entryAdd)
+          else:
+            plateDictDeDuped[plateText1] = [entryAdd]
+        del plateDictDeDuped[plateText2]
+        combinedSimilarPlateCnt += 1
 
 # Compare plate text from similar plates and select the most popular
 plateDictPred = {}
@@ -129,6 +140,7 @@ for plateText in plateDictPredCopy.keys():
         # Add the entry with the smallest frame number to the dict
         # and add subsequent entries only if they are separated by a
         # sufficient number of frames
+        deletedVidSeqDupCnt = 0
         plateEntriesSorted = sorted(plateEntries, key=lambda x: x[5])
         for (i,plateEntry) in enumerate(plateEntriesSorted):
           if i == 0:
@@ -141,6 +153,8 @@ for plateText in plateDictPredCopy.keys():
           elif plateEntry[5] > frameNumBase + MIN_FRAME_GAP_BETWEEN_UNIQUE_PLATES:
             frameNumBase = plateEntry[5]
             plateDictDeDuped2[plateText].append(plateEntry)
+          else:
+            deletedVidSeqDupCnt += 1
 
 
 # generate the report file
@@ -153,7 +167,9 @@ for plateText in plateDictDeDuped2.keys():
     reportFile.write("  {} {} {} {} {} {}\n".format(plateEntry[3], plateEntry[4], plateEntry[0],
                                         plateEntry[1], plateEntry[2], plateEntry[5] ))
 reportFile.close()
-print("Finished")
+print("Deleted {} video sequence duplicates".format(deletedVidSeqDupCnt))
+print("Combined {} similar plates".format(combinedSimilarPlateCnt))
+
 
 
 
