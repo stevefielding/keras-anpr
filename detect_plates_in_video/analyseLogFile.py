@@ -11,6 +11,7 @@ import argparse
 import numpy as np
 import os
 import sys
+from operator import itemgetter
 
 MIN_FRAME_GAP_BETWEEN_UNIQUE_PLATES = 1000
 
@@ -37,6 +38,7 @@ logs = logFile.read()
 logFile.close()
 logsSplit = [s.strip().split(",") for s in logs.splitlines()]
 logsSplit = np.array(logsSplit)
+logFileNumEntries = len(logsSplit)
 plateDict = dict()
 
 # Create a dictionary (plateDict) with the plateText as the keys
@@ -74,15 +76,18 @@ for plateText1 in plateDict.keys():
       if plateText2 in plateDictDeDuped.keys():
         entryAdds = plateDict[plateText2]
         for entryAdd in entryAdds:
-          # if plateText1 key has been deleted, then add it back again
+          # if plateText1 key has already been deleted, then add it back again
           if plateText1 in plateDictDeDuped.keys():
             plateDictDeDuped[plateText1].append(entryAdd)
           else:
             plateDictDeDuped[plateText1] = [entryAdd]
+            combinedSimilarPlateCnt -= 1
         del plateDictDeDuped[plateText2]
         combinedSimilarPlateCnt += 1
 
-# Compare plate text from similar plates and select the most popular
+# The previous code grouped plates that matched by at least 5 chars under the same dictionary key
+# However the dictionary key may not be the best plateText prediction for the group
+# Now we change the key so it represents the most popular combination of characters for each group
 plateDictPred = {}
 for plateText in plateDictDeDuped.keys():
   if len(plateDictDeDuped[plateText]) == 1:
@@ -109,27 +114,32 @@ for plateText in plateDictDeDuped.keys():
     # Copy dictionary entries from plateDictDeDuped, but use the new predicted plate text as the key
     plateDictPred[predPlateText] = plateDictDeDuped[plateText]
 
-# for each plateText group, create videoFileName sub-groups
+# Remove duplicate license plates from a video clip
+# Images that contain the same plateText and come from the
+# same video clip are possibly duplicates
+# Assume that similar plateText within 1000 frames of each other are
+# duplicates, and remove the duplicates
 plateDictDeDuped2 = {}
 plateDictPredCopy = copy.deepcopy(plateDictPred)
 for plateText in plateDictPredCopy.keys():
   plateDictSubGroup = {}
   if len(plateDictPredCopy[plateText]) == 1:
-    # only one entry for this plateText, so simply copy
+    # only one entry for this plateText, so simply copy, no need to de-dupe
     plateDictDeDuped2[plateText] = plateDictPredCopy[plateText]
   else:
-    # more than one entry, so create filename sub-groups
+    # more than one entry, so create a temporary videoFilename sub-group
     for plateEntry in plateDictPredCopy[plateText]:
       if plateEntry[1] in plateDictSubGroup.keys():
         plateDictSubGroup[plateEntry[1]].append(plateEntry)
       else:
         plateDictSubGroup[plateEntry[1]] = [plateEntry]
 
-    # process the filename sub-groups
+    # process the videoFilename sub-group
     for imageFileName in plateDictSubGroup:
       plateEntries = plateDictSubGroup[imageFileName]
       if len(plateEntries) == 1:
-        # There is only one entry, so need to sort, just add to the dictionary
+        # For this videoFile there is only one entry in the sub-group,
+        # so need to sort, just add to the dictionary
         if plateText in plateDictDeDuped2.keys():
           plateDictDeDuped2[plateText].append(plateEntries[0])
         else:
@@ -157,18 +167,23 @@ for plateText in plateDictPredCopy.keys():
             deletedVidSeqDupCnt += 1
 
 
-# generate the report file
+# generate the report file. Sort by plate, then by date and time
 reportFile = open(args["reportFile"], "w")
-for plateText in plateDictDeDuped2.keys():
+sortedKeys = sorted(plateDictDeDuped2.keys())
+for plateText in sortedKeys:
   reportFile.write("{}\n".format(plateText))
   plateEntries = plateDictDeDuped2[plateText]
-  plateEntries = sorted (plateEntries, key=lambda x:x[3])
+  #plateEntries = sorted (plateEntries, key=lambda x:x[3])
+  plateEntries = sorted (plateEntries, key = itemgetter(3,4))
   for plateEntry in plateEntries:
     reportFile.write("  {} {} {} {} {} {}\n".format(plateEntry[3], plateEntry[4], plateEntry[0],
                                         plateEntry[1], plateEntry[2], plateEntry[5] ))
 reportFile.close()
-print("Deleted {} video sequence duplicates".format(deletedVidSeqDupCnt))
-print("Combined {} similar plates".format(combinedSimilarPlateCnt))
+print("[INFO] Deleted {} video sequence duplicates".format(deletedVidSeqDupCnt))
+print("[INFO] Combined {} similar plates".format(combinedSimilarPlateCnt))
+print ("[INFO] Log file has {} entries, and {} unique plates".format(logFileNumEntries, len(plateDict.keys())))
+print ("[INFO] After combining similar plates, report file has {} plates".format(len(sortedKeys)))
+
 
 
 
