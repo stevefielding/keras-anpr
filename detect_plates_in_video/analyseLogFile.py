@@ -44,14 +44,15 @@ logFileNumEntries = len(logsSplit)
 plateDict = dict()
 
 # Create a dictionary (plateDict) with the plateText as the keys
+dates = []
 for logLine in logsSplit:
   videoFileName = logLine[0]
   imageFileName = logLine[1]
   date = logLine[2]
+  dates.append(date)
   time = logLine[3]
   frameNum = int(logLine[4])
   plateTexts = logLine[5:]
-  dates = []
   # Create plateDict, and list of all dates
   for plateText in plateTexts:
     if plateText in plateDict:
@@ -59,12 +60,11 @@ for logLine in logsSplit:
       plateDict[plateText].append([plateText, videoFileName, imageFileName, date, time, frameNum])
     else:
       plateDict[plateText] = [[plateText, videoFileName, imageFileName, date, time, frameNum]]
-    dates.append(date)
 
-  # Find first and last date
-  dates = sorted(dates)
-  firstDate = dates[0]
-  lastDate = dates[-1]
+# Find first and last date
+dates = sorted(dates)
+firstDate = dates[0]
+lastDate = dates[-1]
 
 # combine dictionary keys that match by at least 5 chars
 combinedSimilarPlateCnt = 0
