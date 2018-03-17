@@ -6,6 +6,7 @@
 # Group license plates that match by at least 5 chars
 # Discard duplicate license plates that are in the same video clip, and within 1000 frames
 # Generate a Markdown compatible report file with links to image files
+# Markdown extension for Chrome web browser can be used to view the file
 
 import copy
 import argparse
@@ -48,15 +49,22 @@ for logLine in logsSplit:
   imageFileName = logLine[1]
   date = logLine[2]
   time = logLine[3]
-  frameNum = logLine[4]
+  frameNum = int(logLine[4])
   plateTexts = logLine[5:]
-  #print(logLine)
+  dates = []
+  # Create plateDict, and list of all dates
   for plateText in plateTexts:
     if plateText in plateDict:
       # plateText, videoFileName, imageFileName, date, time, frameNumber
-      plateDict[plateText].append([plateText, logLine[0], logLine[1], logLine[2], logLine[3], int(logLine[4])])
+      plateDict[plateText].append([plateText, videoFileName, imageFileName, date, time, frameNum])
     else:
-      plateDict[plateText] = [[plateText, logLine[0], logLine[1], logLine[2], logLine[3], int(logLine[4])]]
+      plateDict[plateText] = [[plateText, videoFileName, imageFileName, date, time, frameNum]]
+    dates.append(date)
+
+  # Find first and last date
+  dates = sorted(dates)
+  firstDate = dates[0]
+  lastDate = dates[-1]
 
 # combine dictionary keys that match by at least 5 chars
 combinedSimilarPlateCnt = 0
@@ -170,6 +178,7 @@ for plateText in plateDictPredCopy.keys():
 
 # generate the report file. Sort by plate, then by date and time
 reportFile = open(args["reportFile"], "w")
+reportFile.write("##### Report for {} to {}  \n".format(firstDate, lastDate))
 sortedKeys = sorted(plateDictDeDuped2.keys())
 for plateText in sortedKeys:
   reportFile.write("+ {}  \n".format(plateText))
