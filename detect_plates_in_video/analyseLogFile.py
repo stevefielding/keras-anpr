@@ -5,6 +5,7 @@
 # Process the log file
 # Group license plates that match by at least 5 chars
 # Discard duplicate license plates that are in the same video clip, and within 1000 frames
+# Generate a Markdown compatible report file with links to image files
 
 import copy
 import argparse
@@ -171,12 +172,13 @@ for plateText in plateDictPredCopy.keys():
 reportFile = open(args["reportFile"], "w")
 sortedKeys = sorted(plateDictDeDuped2.keys())
 for plateText in sortedKeys:
-  reportFile.write("{}\n".format(plateText))
+  reportFile.write("+ {}  \n".format(plateText))
   plateEntries = plateDictDeDuped2[plateText]
   #plateEntries = sorted (plateEntries, key=lambda x:x[3])
   plateEntries = sorted (plateEntries, key = itemgetter(3,4))
   for plateEntry in plateEntries:
-    reportFile.write("  {} {} {} {} {} {}\n".format(plateEntry[3], plateEntry[4], plateEntry[0],
+    # date time plateText videoFileName imageFileName frameNum
+    reportFile.write("    + {} {} {} {} [imageFile](./{}) {}  \n".format(plateEntry[3], plateEntry[4], plateEntry[0],
                                         plateEntry[1], plateEntry[2], plateEntry[5] ))
 reportFile.close()
 print("[INFO] Deleted {} video sequence duplicates".format(deletedVidSeqDupCnt))
