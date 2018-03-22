@@ -1,5 +1,5 @@
 # USAGE
-# python detect.py --conf conf/lplates_smallset.json
+# python removeLPAliasesFromVideo.py --conf conf/lplates_smallset.json
 
 # For every frame in a video clip: Detects license plate locations
 # If a plate is found in a frame, and the plate location is the closest to the centre of the frame

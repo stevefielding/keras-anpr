@@ -25,6 +25,7 @@
 # import the necessary packages
 from sklearn.model_selection import train_test_split
 from keras.optimizers import SGD
+from keras.optimizers import RMSprop
 from keras.preprocessing.image import ImageDataGenerator
 from keras import losses
 from keras.optimizers import Adam
@@ -115,10 +116,10 @@ if args["annFile"] != None:
     sys.exit()
 
 # Some constants
-EPOCHS = 6000      # Number of epochs of training
+EPOCHS = 2000      # Number of epochs of training
 INPUT_WIDTH = 128  # Network input width
 INPUT_HEIGHT = 64  # Network input height
-LEARN_RATE=0.003   # Network learning rate
+LEARN_RATE=0.001   # Network learning rate
 augEnabled = True  # Image augmentation. Helps reduce over-fitting
 
 # construct the image generator for data augmentation
@@ -169,8 +170,10 @@ testY = testY.reshape(-1,PLATE_TEXT_LEN, NUM_CHAR_CLASSES)
 
 # initialize the optimizer and model
 print("[INFO] compiling model...")
-opt = SGD(lr=LEARN_RATE, decay=LEARN_RATE/EPOCHS)
-#opt = Adam(lr=LEARN_RATE, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+#opt = SGD(lr=LEARN_RATE, decay=LEARN_RATE/EPOCHS)
+#opt = RMSprop(lr=LEARN_RATE, decay=LEARN_RATE/EPOCHS)
+opt = RMSprop(lr=LEARN_RATE)
+#opt = Adam(lr=LEARN_RATE)
 model = AnprCharDet.build(width=INPUT_WIDTH, height=INPUT_HEIGHT, depth=1, textLen=PLATE_TEXT_LEN, numCharClasses=NUM_CHAR_CLASSES)
 model.compile(loss='categorical_crossentropy', optimizer=opt)
 
@@ -193,7 +196,7 @@ print("[INFO] training network...")
 if augEnabled == True:
   H= model.fit_generator(aug.flow(trainX, trainY, batch_size=32),
     validation_data=(testX, testY), epochs=EPOCHS,
-    steps_per_epoch=len(trainX) // 32, callbacks=callbacks, verbose=1)
+    steps_per_epoch=len(trainX) // 32, callbacks=callbacks, verbose=0)
 else:
   H = model.fit(trainX, trainY, validation_data=(testX, testY),
 	  batch_size=32, epochs=EPOCHS, callbacks=callbacks, verbose=1)

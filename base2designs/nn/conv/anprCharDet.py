@@ -32,6 +32,8 @@ class AnprCharDet:
                      input_shape=inputShape))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    # Dropout
+    model.add(Dropout(0.25))
 
     # Conv Layer 2
     # define the second layer CONV => RELU => MAXPOOL layer
@@ -39,6 +41,8 @@ class AnprCharDet:
     model.add(Conv2D(64, (5, 5), padding="same"))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=(1, 2)))
+    # Dropout
+    model.add(Dropout(0.25))
 
     # Conv Layer 3
     # define the third layer CONV => RELU => MAXPOOL layer
@@ -46,13 +50,15 @@ class AnprCharDet:
     model.add(Conv2D(128, (5, 5), padding="same"))
     model.add(Activation("relu"))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    # Dropout
+    model.add(Dropout(0.25))
 
     # Dense Layer 1
     # eg input 8x32x128 => 32768 => 2048
     model.add(Flatten())
     model.add(Dense(2048))
     # Dropout
-    model.add(Dropout(0.7))
+    model.add(Dropout(0.5))
 
     # output Layer
     # eg (maxAlpha+maxDig) * maxLicPlateChars = (26+10)*7 = 252
