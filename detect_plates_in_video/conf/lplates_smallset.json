@@ -17,18 +17,22 @@
   "saveAnnotatedImage": "false", # output files from detect.py can optionally be annotated with LP bounding box and LP chars
   "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
   "move_video_file": "true", # move video file to new location after finished processing
+
+  #######
+  # plate detector CONFIGURATION
+  #######
+  "dlib_SVM_detector":"../dlib_plate_detector/plateDetector.svm", # dlib SVM detector config
+  "plateMargin": 10, # Add an extra margin around the cropped plate image. This allows extra room for image aug during training
   "searchCropFactorX": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
   "searchCropFactorY": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
   "frameDecimationFactor": 4, # decimate the frame rate to reduce the processing load
-  "samePlateMaxDist": 300, # Maximum distance between plates in consecutive farmes, and still considered the same plate
-  "detectLicenseText": "true", # detect license text after the license plate has been located
-  "plateMargin": 10, # Add an extra margin around the cropped plate image. This allows extra room for image aug during training
 
   #######
-  # lpd CONFIGURATION
+  # History CONFIGURATION
   #######
-
-  "dlib_SVM_detector":"../dlib_plate_detector/plateDetector.svm", # dlib SVM detector config
+  "videoFrameRate": 30, # video frame rate in frames per second
+  "plateLogLatency": 1, # Number of seconds between logging operation
+  "rollingDictHistoryLimit": 10, # Oldest age of data in history buffer measured in seconds
 
   #######
   # CNN model CONFIGURATION

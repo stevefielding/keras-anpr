@@ -1,5 +1,5 @@
 # USAGE
-# python detectLPInLiveVideo.py --conf conf/lplates_smallset.json
+# python detectLPInVideoLive.py --conf conf/lplates_smallset.json
 
 # For every frame in a video clip: Detects license plate locations
 # If a plate is found in a frame, and the plate location is the closest to the centre of the frame
@@ -11,7 +11,7 @@
 # Doing actual processing on 45/4 frames per second, so that metric is sort of confusing.
 # 3 out of 4 frames are simply discarded.
 # profiling:
-# python -m cProfile -s time removeLPAliasesFromVideo.py --conf conf/sunba_motion_detect_local_test.json > profile.txt
+# python -m cProfile -s time detectLPInVideoLive.py --conf conf/lplates_smallset.json > profile.txt
 
 # import the necessary packages
 from __future__ import print_function
@@ -35,6 +35,7 @@ from base2designs.datasets import AnprLabelProcessor
 from base2designs.utils.charClassifier import CharClassifier
 from base2designs.utils.conf import Conf
 from base2designs.utils.findFrameWithPlate import FindFrameWithPlate
+from base2designs.utils.plateHistory import PlateHistory
 from base2designs.utils.folderControl import FolderControl
 from base2designs.preprocessing import ImageToArrayPreprocessor
 from base2designs.preprocessing import SimplePreprocessor
@@ -49,12 +50,14 @@ if os.path.exists(args["conf"]) == False:
   print("[ERROR]: --conf \"{}\" does not exist".format(args["conf"]))
   sys.exit()
 
-# Read the json config and initialize the frame processor
+# Read the json config and initialize the plate detector
 conf = Conf(args["conf"])
 folderController = FolderControl()
 findFrameWithPlate = FindFrameWithPlate(str(conf["dlib_SVM_detector"]),
-                                        samePlateMaxDist=conf["samePlateMaxDist"],
-                                        searchCropFactorX=(conf["searchCropFactorX"]), searchCropFactorY=(conf["searchCropFactorY"]))
+                                        searchCropFactorX=(conf["searchCropFactorX"]),
+                                        searchCropFactorY=(conf["searchCropFactorY"]),
+                                        margin = conf["plateMargin"],
+                                        removeOverlay=False)
 
 # initialize the image preprocessors
 # sp converts image to gray, and then resizes to 128,64
@@ -73,7 +76,7 @@ NUM_CHAR_CLASSES = len(plateChars)
 # convert the labels from integers to one-hot vectors
 alp = AnprLabelProcessor(plateChars, plateLens)
 
-# open the logFile, create if it does not exist
+# open the logFile, create if it does not exist, otherwise open in append mode
 logFilePath = "{}/{}" .format(conf["output_image_path"], conf["log_file_name"])
 if (os.path.isdir(conf["output_image_path"]) != True):
   os.makedirs(conf["output_image_path"])
@@ -82,16 +85,20 @@ if os.path.exists(logFilePath) == False:
 else:
   logFile = open(logFilePath, "a")
 
-# load the pre-trained char classifier network, and init the char classifier utility
+# load the pre-trained char classifier network, init the char classifier utility
+# and load the plate history utility
 print("[INFO] loading pre-trained network...")
 ccModel = load_model(conf["model"])
 plot_model(ccModel, to_file="anprCharDet.png", show_shapes=True)
-cc = CharClassifier(alp, ccModel, conf["output_image_path"], conf["output_cropped_image_path"], logFile,
-                    saveAnnotatedImage=conf["saveAnnotatedImage"] == "true",
-                    preprocessors=[sp,iap], croppedImagePreprocessors=[sp])
+cc = CharClassifier(alp, ccModel, preprocessors=[sp,iap], croppedImagePreprocessors=[sp])
+rollingDictHistoryLimit = conf["rollingDictHistoryLimit"] * conf["videoFrameRate"]
+plateHistory = PlateHistory(conf["output_image_path"], conf["output_cropped_image_path"], logFile,
+                            saveAnnotatedImage=conf["saveAnnotatedImage"] == "true",
+                            rollingDictHistoryLimit=rollingDictHistoryLimit)
 
 validImages = 0
 dtNow = datetime.datetime.now()
+plateLogLatency = conf["plateLogLatency"]* conf["videoFrameRate"]
 print("[INFO] opening video source...")
 start_time = time.time()
 frameCount = 0
@@ -100,31 +107,29 @@ destFolderRootName = "{}-{}-{}".format(dtNow.year, dtNow.month, dtNow.day)
 folderController.createDestFolders(destFolderRootName, conf["save_video_path"],
                                    conf["output_image_path"], conf["output_cropped_image_path"])
 vs = cv2.VideoCapture(0)
-# wait for valid video
+vs.set(cv2.CAP_PROP_FRAME_WIDTH,1280 )
+vs.set(cv2.CAP_PROP_FRAME_HEIGHT,720 )
+vs.set(cv2.CAP_PROP_FPS,conf["videoFrameRate"] )
+print ("Camera frame: {} x {} @ {} Hz".format(vs.get(cv2.CAP_PROP_FRAME_WIDTH), vs.get(cv2.CAP_PROP_FRAME_HEIGHT), vs.get(cv2.CAP_PROP_FPS)))
+
+# Check for valid video
 if vs is None:
   print("[ERROR] Cannot connect to video source")
   sys.exit()
 
 # Prepare findFrameWithPlate for a new video sequence
-findFrameWithPlate.startNewVideoClip()
+plateLogFlag = False
+firstPlateFound = False
+loggedPlateCount = 0
+savedPlatesDict = dict()
 while True:
   dtNow = datetime.datetime.now()
   imagePath = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
   # read the next frame from the video stream
   ret = vs.grab() # grab frame but do not decode
-  #ret, frame = vs.read()
-  #if end of current video file, then move video file to saveDir, quit loop and get the next video file
+  #if end of current video file, then clean up and quit
   key = cv2.waitKey(1) & 0xFF
-  if (ret==False or key == ord("q")):
-    # We have reached the end of the video clip, but the previous sequence was unterminated, and the best plate was not saved
-    # This happens when the all the plates in a video clip are sufficiently close to be considered part of
-    # a single sequence, and the sequence is not terminated
-    if findFrameWithPlate.plateSeqUnTerminated == True:
-      (bestImage, minDistToFrameCentre, licensePlateList, outputFileName) = findFrameWithPlate.getBestFrame()
-      cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName, frameCount,
-                          imagePath[imagePath.rfind("/") + 1:],
-                          margin=conf["plateMargin"], imageDebugEnable=conf["imageDebugEnable"]=="true")
-      validImages += 1
+  if (ret==False or key != 255):
     # close any open windows
     cv2.destroyAllWindows()
     logFile.close()
@@ -135,21 +140,46 @@ while True:
     print("[INFO] video source terminated")
     sys.exit()
 
-  # Decimate the the frames
+  # Decimate the frames
   frameCount += 1
+  if frameCount % plateLogLatency == 0 and firstPlateFound == True:
+    plateLogFlag = True
   if (frameDecCnt == 1):
     ret, frame = vs.retrieve() # retrieve the already grabbed frame
     # process the frame. Find image with license plate
-    bestPlateFound = findFrameWithPlate.processSingleFrame(imagePath,
-                                 frame,
-                                 removeOverlay=(conf["removeOverlay"] =="true"),
-                                 detectLicenseText=(conf["detectLicenseText"] == "true"))
-    # if there are any valid results, save the cropped image to file
-    if bestPlateFound == True:
-      (bestImage, minDistToFrameCentre, licensePlateList, outputFileName) = findFrameWithPlate.getBestFrame()
-      cc.findCharsInPlate(bestImage, licensePlateList, outputFileName, destFolderRootName, frameCount,
-                          imagePath[imagePath.rfind("/") + 1:],
-                          margin=conf["plateMargin"], imageDebugEnable=conf["imageDebugEnable"]=="true")
+    (licensePlateFound, plateImages, plateBoxes) = findFrameWithPlate.extractPlate(frame)
+
+    # if license plates have been found, then predict the plate text, and add to the history
+    if licensePlateFound == True:
+      (plateList, plateImagesProcessed) = cc.predictPlateText(plateImages)
+      plateHistory.addPlatesToHistory(plateList, plateImagesProcessed, plateBoxes, frame, videoPath, frameCount)
+      validImages += 1
+      firstPlateFound = True
+
+    # if sufficient time has passed since the last log, then
+    # get a dictionary of the best de-duplicated plates,
+    # and remove old plates from history
+    if plateLogFlag == True and firstPlateFound == True:
+      plateLogFlag = False
+      plateDictBest = plateHistory.selectTheBestPlates()
+      plateHistory.removeOldPlatesFromHistory(frameCount)
+
+      # for all the plates in plateDictBest, log the plate if it has not been previously seen
+      # ie the plate is not already in savedPlatesDict
+      plateDictForLog = {}
+      newPlatesFound = False
+      for plateText in plateDictBest:
+        if plateText not in savedPlatesDict.keys():
+          savedPlatesDict[plateText] = frameCount
+          plateDictForLog[plateText] = plateDictBest[plateText]
+          loggedPlateCount += 1
+          newPlatesFound = True
+
+      # If any new plates have been found, then
+      # generate output files, ie cropped Images, full image and log file
+      if newPlatesFound == True:
+        plateHistory.logToFile(plateDictForLog, destFolderRootName)
+
       validImages += 1
     # show the frame and record if the user presses a key
     if conf["display_video_enable"] == "true":
