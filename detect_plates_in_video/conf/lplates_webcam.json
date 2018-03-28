@@ -17,6 +17,7 @@
   "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
   "move_video_file": "false", # move video file to new location after finished processing
   "perfUpdateInterval": 10, # Interval between updates of performance reporting in seconds
+  "target": "jetson", # Code target. Either jetson or pc
 
   #######
   # plate detector CONFIGURATION

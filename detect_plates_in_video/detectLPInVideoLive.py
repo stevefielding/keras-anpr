@@ -108,10 +108,15 @@ frameDecCnt = 1
 destFolderRootName = "{}-{}-{}".format(dtNow.year, dtNow.month, dtNow.day)
 folderController.createDestFolders(destFolderRootName, conf["save_video_path"],
                                    conf["output_image_path"], conf["output_cropped_image_path"])
-vs = cv2.VideoCapture(0)
-vs.set(cv2.CAP_PROP_FRAME_WIDTH,1280 )
-vs.set(cv2.CAP_PROP_FRAME_HEIGHT,720 )
-vs.set(cv2.CAP_PROP_FPS,conf["videoFrameRate"] )
+
+if conf["target"] == "jetson":
+  vs = cv2.VideoCapture("nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, framerate=(fraction)30/1 ! nvvidconv flip-method=0 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
+else:
+  vs = cv2.VideoCapture(0)
+  vs.set(cv2.CAP_PROP_FRAME_WIDTH,1280 )
+  vs.set(cv2.CAP_PROP_FRAME_HEIGHT,720 )
+  vs.set(cv2.CAP_PROP_FPS,conf["videoFrameRate"] )
+
 print ("Camera frame: {} x {} @ {} Hz".format(vs.get(cv2.CAP_PROP_FRAME_WIDTH), vs.get(cv2.CAP_PROP_FRAME_HEIGHT), vs.get(cv2.CAP_PROP_FPS)))
 
 # Check for valid video
