@@ -98,10 +98,12 @@ plateHistory = PlateHistory(conf["output_image_path"], conf["output_cropped_imag
 
 validImages = 0
 dtNow = datetime.datetime.now()
-plateLogLatency = conf["plateLogLatency"]* conf["videoFrameRate"]
+plateLogLatency = conf["plateLogLatency"] * conf["videoFrameRate"]
+perfUpdateInterval = conf["perfUpdateInterval"] * conf["videoFrameRate"]
 print("[INFO] opening video source...")
 start_time = time.time()
 frameCount = 0
+oldFrameCount = 0
 frameDecCnt = 1
 destFolderRootName = "{}-{}-{}".format(dtNow.year, dtNow.month, dtNow.day)
 folderController.createDestFolders(destFolderRootName, conf["save_video_path"],
@@ -119,31 +121,32 @@ if vs is None:
 
 # Prepare findFrameWithPlate for a new video sequence
 plateLogFlag = False
+perfUpdateFlag = False
 firstPlateFound = False
 loggedPlateCount = 0
 savedPlatesDict = dict()
 while True:
   dtNow = datetime.datetime.now()
-  imagePath = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
+  timeNow = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
   # read the next frame from the video stream
   ret = vs.grab() # grab frame but do not decode
+
   #if end of current video file, then clean up and quit
   key = cv2.waitKey(1) & 0xFF
   if (ret==False or key != 255):
     # close any open windows
     cv2.destroyAllWindows()
     logFile.close()
-    processingTime = time.time() - start_time
-    fps = frameCount / processingTime
-    print("[INFO] Processed {} frames in {} seconds. Frame rate: {} Hz".format(frameCount, processingTime, fps))
-    print("[INFO] validImages: {}, frameCount: {}".format(validImages, frameCount))
-    print("[INFO] video source terminated")
     sys.exit()
 
-  # Decimate the frames
+  # update some tracking variables
   frameCount += 1
   if frameCount % plateLogLatency == 0 and firstPlateFound == True:
     plateLogFlag = True
+  if frameCount % perfUpdateInterval == 0:
+    perfUpdateFlag = True
+
+  # Decimate the frames
   if (frameDecCnt == 1):
     ret, frame = vs.retrieve() # retrieve the already grabbed frame
     # process the frame. Find image with license plate
@@ -152,7 +155,7 @@ while True:
     # if license plates have been found, then predict the plate text, and add to the history
     if licensePlateFound == True:
       (plateList, plateImagesProcessed) = cc.predictPlateText(plateImages)
-      plateHistory.addPlatesToHistory(plateList, plateImagesProcessed, plateBoxes, frame, videoPath, frameCount)
+      plateHistory.addPlatesToHistory(plateList, plateImagesProcessed, plateBoxes, frame, timeNow, frameCount)
       validImages += 1
       firstPlateFound = True
 
@@ -180,14 +183,31 @@ while True:
       if newPlatesFound == True:
         plateHistory.logToFile(plateDictForLog, destFolderRootName)
 
-      validImages += 1
-    # show the frame and record if the user presses a key
+    # show the frame and predicted plate text
     if conf["display_video_enable"] == "true":
+      if licensePlateFound == True:
+        for (plateBox, plateText) in zip(plateBoxes, plateList):
+          cv2.rectangle(frame, plateBox[0], plateBox[1], (0, 255, 0), 2)
+          cv2.putText(frame, plateText, plateBox[0], cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
       cv2.imshow("Frame", frame)
+
+  # update frame decimator count
   if (frameDecCnt == conf["frameDecimationFactor"]):
     frameDecCnt = 1
   else:
     frameDecCnt += 1
+
+  # update performance tracking
+  if perfUpdateFlag == True:
+    perfUpdateFlag = False
+    curTime = time.time()
+    processingTime = curTime - start_time
+    start_time = curTime
+    frameCountDelta = frameCount - oldFrameCount
+    fps = frameCountDelta / processingTime
+    oldFrameCount = frameCount
+    print("[INFO] Processed {} frames in {} seconds. Frame rate: {} Hz".format(frameCountDelta, processingTime, fps))
+    print("[INFO] validImages: {}, frameCount: {}".format(validImages, frameCount))
 
 
 

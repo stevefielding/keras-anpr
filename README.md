@@ -76,7 +76,7 @@ you have completed all your imglab editing before you run this app.
 Read plate text and location from xml file, crop the lplate from the associated image, convert to gray scale, resize to 128x64
 and save to a new file with the plate text embedded in the filename.
 
-##### detect_plates_in_video/removeLPAliasesFromVideo.py
+##### detect_plates_in_video/detectLPInVideoFiles.py
 Once your dataset is large enough to successfully train the plate detector and char classifier, then you no
 longer need to use VLC, imglab, etc. You can can use this app 
 to generate more cropped annotated images. See below for description
@@ -137,13 +137,15 @@ text and the predicted text.
 Putting it all together - Plate detection and character classification
 ----------------------------------------------------------------------
 
-##### detect_plates_in_video/removeLPAliasesFromVideo.py
-Load video files, detect plates using dlib FHOG+LSVM. Track plates through time, and find the video frame where the 
-plate is closest to the centre of the image. Crop the plate from the image, and then
-use convNet to classify the characters in the plate. Save the original image
+##### detect_plates_in_video/detectLPInVideoFiles.py
+Load video files, detect plates using dlib FHOG+LSVM. Crop the plate from the image, and then
+use a convNet to classify the characters in the plate. Save the original image
 and the cropped image to file. Suffix the filename with the lplate text.
 This app can be used to generate training data for the char classifier convNet. The
 license plate text will be wrong for some images, and this will need to
 be manually corrected before using as training data. As the convNet performance improves, the number of character errors
 declines, and the hand editing of filenames becomes easier.
+
+##### detect_plates_in_video/detectLPInVideoLive.py
+Similar to detectLPInVideoFiles.py, but detects plates in a live video feed.
 

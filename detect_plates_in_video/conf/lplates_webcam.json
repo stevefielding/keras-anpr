@@ -16,6 +16,7 @@
   "saveAnnotatedImage": "false", # output files from detect.py can optionally be annotated with LP bounding box and LP chars
   "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
   "move_video_file": "false", # move video file to new location after finished processing
+  "perfUpdateInterval": 10, # Interval between updates of performance reporting in seconds
 
   #######
   # plate detector CONFIGURATION

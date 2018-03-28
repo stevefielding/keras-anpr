@@ -16,6 +16,7 @@ class LicensePlateRecogniseDlib:
   def detect(self, image, imageDebugEnable=False, detectLicenseText=False):
     # copy the image because we are going to modify, and want to leave original image intact
     imageCopy = image.copy()
+    #imageCopy = image
     # reverse the color order from BGR to RGB format used by dlib
     imageCopy = cv2.cvtColor(imageCopy, cv2.COLOR_BGR2RGB)
     # detect the license plates
