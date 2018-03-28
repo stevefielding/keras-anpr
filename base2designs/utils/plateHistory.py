@@ -6,18 +6,19 @@ import re
 
 class PlateHistory:
 
-  def __init__(self, output_image_path, output_cropped_image_path, logFile, saveAnnotatedImage, rollingDictHistoryLimit):
+  def __init__(self, output_image_path, output_cropped_image_path, logFile, saveAnnotatedImage):
     self.rollingPlateDict = {}
+    self.savedPlatesDict = {}
     self.fileCnt = 1
     self.output_image_path = output_image_path
     self.output_cropped_image_path = output_cropped_image_path
     self.saveAnnotatedImage = saveAnnotatedImage
     self.logFile = logFile
-    self.rollingDictHistoryLimit = rollingDictHistoryLimit
 
-  # clear the rollingPlateDict. Need to do this at the start of every new video clip
+  # clear the dictionaries. Need to do this at the start of every new video clip
   def clearHistory(self):
     self.rollingPlateDict = {}
+    self.savedPlatesDict = {}
 
   # plateList: list of plate texts
   # plateImages: list of cropped plate images
@@ -26,28 +27,18 @@ class PlateHistory:
   # frameNumber: video clip frame number
   # rollingPlateDict has the following format:
   # key = plateText
-  #   val = [ [plateText, plateImage, plateBox, fullImage, videoPath, frameNumber],
-  #           [plateText, plateImage, plateBox, fullImage, videoPath, frameNumber] ...]
+  #   val = [ [plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, numberOfPlates],
+  #           [plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, numberOfPlates] ...]
   def addPlatesToHistory(self, plateList, plateImages, plateBoxes, fullImage, videoPath, frameNumber):
     # add the new plates to rollingPlateDict
     for (plateText, plateImage, plateBox) in zip(plateList, plateImages, plateBoxes):
       if plateText in self.rollingPlateDict:
-        self.rollingPlateDict[plateText].append([plateText, plateImage, plateBox, fullImage, videoPath, frameNumber])
+        self.rollingPlateDict[plateText].append([plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, 1])
       else:
-        self.rollingPlateDict[plateText] = [[plateText, plateImage, plateBox, fullImage, videoPath, frameNumber]]
+        self.rollingPlateDict[plateText] = [[plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, 1]]
 
-  def removeOldPlatesFromHistory(self, frameNumber):
-    # remove entries from rollingPlateDict that are older
-    # than rollingDictHistoryLimit frames
-    rollingPlateDictNew = {}
-    for plateText in self.rollingPlateDict.keys():
-      for plateEntry in self.rollingPlateDict[plateText]:
-        if (frameNumber - plateEntry[5]) < self.rollingDictHistoryLimit:
-          if plateText in rollingPlateDictNew.keys():
-            rollingPlateDictNew[plateText].append(plateEntry)
-          else:
-            rollingPlateDictNew[plateText] = [plateEntry]
-    self.rollingPlateDict = rollingPlateDictNew
+  def removeOldPlatesFromHistory(self):
+    self.rollingPlateDict = {}
 
   # Add new plates to the rollingPlateDict
   # Group plates that have similar plate text
@@ -63,6 +54,7 @@ class PlateHistory:
       del plateDict2[plateText1]
       for plateText2 in plateDict2.keys():
         matchCnt = 0
+        # compare each char in the plate text
         for i in np.arange(len(plateText1)):
           if plateText1[i] == plateText2[i]:
             matchCnt += 1
@@ -122,20 +114,33 @@ class PlateHistory:
         for i in np.arange(len(plateTextEntry)):
           if plateText[i] == plateTextEntry[i]:
             matchCnt += 1
-        # if this is entry has the best match to the key, then save it
+        # if this entry has the best match to the key, then save it
         # We use >= so that we can catch the case where matchCnt = 0
         if matchCnt >= bestMatchCnt:
           bestMatchCnt = matchCnt
           bestPlateEntry = plateEntry
           plateDictBest[plateText] = bestPlateEntry
-
+          numPlates = len(plateDictPred[plateText])
+          # We are deleting the extra plate entries, but keep a count of how many there were
+          plateDictBest[plateText][6] = numPlates
 
     return (plateDictBest)
 
-  def logToFile(self, plateDict, destFolderRootName):
+  def logToFile(self, plateDict, destFolderRootName, frameCount):
+    # for all the plates in plateDict, add to full log if the plate if it has not been previously seen
+    # otherwise add to partial log
+    plateDictForFullLog = {}
+    plateDictForPartialLog = {}
+    for plateText in plateDict:
+      if plateText in self.savedPlatesDict.keys():
+        plateDictForPartialLog[plateText] = plateDict[plateText]
+      else:
+        self.savedPlatesDict[plateText] = frameCount
+        plateDictForFullLog[plateText] = plateDict[plateText]
 
-    for plateText in plateDict.keys():
-      (plateText, plateImage, plateBox, fullImage, videoPath, frameNumber) = plateDict[plateText]
+    # Full log. Copy fullImage and plate Image to file and update log file
+    for plateText in plateDictForFullLog.keys():
+      (plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, numberOfPlates) = plateDictForFullLog[plateText]
 
       # strip the video file name for use when saving still images
       videoFileName = videoPath.split("/")[-1]
@@ -164,8 +169,8 @@ class PlateHistory:
       cv2.imwrite(outputFullImagePath, fullImage)
 
       # update the log file
-      # videoFileName, imageFileName, date, time, frameNumber, plateText
-      # lplate_toy_video4.mp4,2018_01_01/lplate_toy_video.mp4_51.jpg,2018_01_10,5:05,271,5HUY634,5JHY768
+      # videoFileName, imageFileName, date, time, frameNumber, numberOfPlates, plateText
+      # lplate_toy_video4.mp4,2018_01_01/lplate_toy_video.mp4_51.jpg,2018_01_10,5:05,271,1,5HUY634
       imageFileName = "{}/{}.jpg".format(destFolderRootName, outputFullImageFileName)
       date = destFolderRootName
       m = re.search(r"^([0-9]{2}[.:][0-9]{2}[.:][0-9]{2})",videoFileName)
@@ -173,5 +178,24 @@ class PlateHistory:
         time = m.group(1)
       else:
         time = "HH.MM.SS"
-      self.logFile.write("{},{},{},{},{},{}\n".format(videoFileName, imageFileName, date, time, frameNumber, plateText))
+      self.logFile.write("{},{},{},{},{},{},{}\n".format(videoFileName, imageFileName, date, time, frameNumber, numberOfPlates, plateText))
+      self.logFile.flush()
+
+    # Partial log. Just update the log file
+    for plateText in plateDictForPartialLog.keys():
+      (plateText, plateImage, plateBox, fullImage, videoPath, frameNumber, numberOfPlates) = plateDictForPartialLog[plateText]
+
+      # strip the video file name for use when saving still images
+      videoFileName = videoPath.split("/")[-1]
+
+      # update the log file
+      # videoFileName, imageFileName, date, time, frameNumber, numberOfPlates, plateText
+      # eg: lplate_toy_video4.mp4,2018_01_01/lplate_toy_video.mp4_51.jpg,2018_01_10,5:05,271,1,5HUY634
+      date = destFolderRootName
+      m = re.search(r"^([0-9]{2}[.:][0-9]{2}[.:][0-9]{2})",videoFileName)
+      if m:
+        time = m.group(1)
+      else:
+        time = "HH.MM.SS"
+      self.logFile.write("{},{},{},{},{},{},{}\n".format("NO_FULL_IMAGE", "NO_PLATE_IMAGE", date, time, frameNumber, numberOfPlates, plateText))
       self.logFile.flush()

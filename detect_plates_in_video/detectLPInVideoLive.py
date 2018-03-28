@@ -2,14 +2,13 @@
 # python detectLPInVideoLive.py --conf conf/lplates_smallset.json
 
 # For every frame in a video clip: Detects license plate locations
-# If a plate is found in a frame, and the plate location is the closest to the centre of the frame
-# for that plate sequence, then it is flagged as the best frame and saved.
-# A plate sequence is considered to be a sequence of plates when the distance between plate
-# locations in successive frames is below a threshold
-# Program is way too slow if you use every frame, and full frame size (1920x1080)
-# Can process 45 frames per second if decimating by factor of 4, and reduce frame size by 2 in x and y dimension
-# Doing actual processing on 45/4 frames per second, so that metric is sort of confusing.
-# 3 out of 4 frames are simply discarded.
+# If a plate is found in a frame, then the cropped image of the plate is passed to a character classifier
+# and the plate text is predicted.
+# The plate text is added to the history buffer.
+# Every ~1 second, the frame buffer is processed and a dictionary of unique plates (plateDictBest) is extracted.
+# If any of the plates in plateDictBest has not been seen before then they are logged to file
+# If every frame in a 1920x1080 video is processed, then can only process 5 fps
+# Can process 20 frames per second if decimating by factor of 4, and still full frame size
 # profiling:
 # python -m cProfile -s time detectLPInVideoLive.py --conf conf/lplates_smallset.json > profile.txt
 
@@ -91,10 +90,8 @@ print("[INFO] loading pre-trained network...")
 ccModel = load_model(conf["model"])
 plot_model(ccModel, to_file="anprCharDet.png", show_shapes=True)
 cc = CharClassifier(alp, ccModel, preprocessors=[sp,iap], croppedImagePreprocessors=[sp])
-rollingDictHistoryLimit = conf["rollingDictHistoryLimit"] * conf["videoFrameRate"]
 plateHistory = PlateHistory(conf["output_image_path"], conf["output_cropped_image_path"], logFile,
-                            saveAnnotatedImage=conf["saveAnnotatedImage"] == "true",
-                            rollingDictHistoryLimit=rollingDictHistoryLimit)
+                            saveAnnotatedImage=conf["saveAnnotatedImage"] == "true")
 
 validImages = 0
 dtNow = datetime.datetime.now()
@@ -103,6 +100,7 @@ perfUpdateInterval = conf["perfUpdateInterval"] * conf["videoFrameRate"]
 print("[INFO] opening video source...")
 start_time = time.time()
 frameCount = 0
+frameCntForPlateLog = 0
 oldFrameCount = 0
 frameDecCnt = 1
 destFolderRootName = "{}-{}-{}".format(dtNow.year, dtNow.month, dtNow.day)
@@ -129,7 +127,6 @@ plateLogFlag = False
 perfUpdateFlag = False
 firstPlateFound = False
 loggedPlateCount = 0
-savedPlatesDict = dict()
 while True:
   dtNow = datetime.datetime.now()
   timeNow = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
@@ -146,8 +143,11 @@ while True:
 
   # update some tracking variables
   frameCount += 1
-  if frameCount % plateLogLatency == 0 and firstPlateFound == True:
+  if firstPlateFound == True:
+    frameCntForPlateLog += 1
+  if frameCntForPlateLog > plateLogLatency:
     plateLogFlag = True
+    frameCntForPlateLog = 0
   if frameCount % perfUpdateInterval == 0:
     perfUpdateFlag = True
 
@@ -163,30 +163,19 @@ while True:
       plateHistory.addPlatesToHistory(plateList, plateImagesProcessed, plateBoxes, frame, timeNow, frameCount)
       validImages += 1
       firstPlateFound = True
+      platesReadyForLog = True
 
     # if sufficient time has passed since the last log, then
     # get a dictionary of the best de-duplicated plates,
     # and remove old plates from history
-    if plateLogFlag == True and firstPlateFound == True:
+    if plateLogFlag == True:
+      platesReadyForLog = False
       plateLogFlag = False
       plateDictBest = plateHistory.selectTheBestPlates()
-      plateHistory.removeOldPlatesFromHistory(frameCount)
-
-      # for all the plates in plateDictBest, log the plate if it has not been previously seen
-      # ie the plate is not already in savedPlatesDict
-      plateDictForLog = {}
-      newPlatesFound = False
-      for plateText in plateDictBest:
-        if plateText not in savedPlatesDict.keys():
-          savedPlatesDict[plateText] = frameCount
-          plateDictForLog[plateText] = plateDictBest[plateText]
-          loggedPlateCount += 1
-          newPlatesFound = True
-
-      # If any new plates have been found, then
+      plateHistory.removeOldPlatesFromHistory()
       # generate output files, ie cropped Images, full image and log file
-      if newPlatesFound == True:
-        plateHistory.logToFile(plateDictForLog, destFolderRootName)
+      plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+      loggedPlateCount += len(plateDictBest)
 
     # show the frame and predicted plate text
     if conf["display_video_enable"] == "true":

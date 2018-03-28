@@ -17,7 +17,7 @@
   "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
   "move_video_file": "false", # move video file to new location after finished processing
   "perfUpdateInterval": 10, # Interval between updates of performance reporting in seconds
-  "target": "jetson", # Code target. Either jetson or pc
+  "target": "pc", # Code target. Either jetson or pc
 
   #######
   # plate detector CONFIGURATION
@@ -34,7 +34,6 @@
   #######
   "videoFrameRate": 30, # video frame rate in frames per second
   "plateLogLatency": 1, # Number of seconds between logging operation
-  "rollingDictHistoryLimit": 10, # Oldest age of data in history buffer measured in seconds
 
   #######
   # CNN model CONFIGURATION

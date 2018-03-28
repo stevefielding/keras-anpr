@@ -25,14 +25,13 @@
   "plateMargin": 10, # Add an extra margin around the cropped plate image. This allows extra room for image aug during training
   "searchCropFactorX": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
   "searchCropFactorY": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
-  "frameDecimationFactor": 4, # decimate the frame rate to reduce the processing load
+  "frameDecimationFactor": 1, # decimate the frame rate to reduce the processing load
 
   #######
   # History CONFIGURATION
   #######
   "videoFrameRate": 30, # video frame rate in frames per second
   "plateLogLatency": 1, # Number of seconds between logging operation
-  "rollingDictHistoryLimit": 10, # Oldest age of data in history buffer measured in seconds
 
   #######
   # CNN model CONFIGURATION

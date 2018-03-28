@@ -88,13 +88,10 @@ print("[INFO] loading pre-trained network...")
 ccModel = load_model(conf["model"])
 plot_model(ccModel, to_file="anprCharDet.png", show_shapes=True)
 cc = CharClassifier(alp, ccModel, preprocessors=[sp,iap], croppedImagePreprocessors=[sp])
-rollingDictHistoryLimit = conf["rollingDictHistoryLimit"] * conf["videoFrameRate"]
 plateHistory = PlateHistory(conf["output_image_path"], conf["output_cropped_image_path"], logFile,
-                            saveAnnotatedImage=conf["saveAnnotatedImage"] == "true",
-                            rollingDictHistoryLimit=rollingDictHistoryLimit)
+                            saveAnnotatedImage=conf["saveAnnotatedImage"] == "true")
 
 quit = False
-savedPlatesDict = dict()
 plateLogLatency = conf["plateLogLatency"]* conf["videoFrameRate"]
 while True:
   # Get the list of video files
@@ -107,6 +104,7 @@ while True:
     print("[INFO] reading video file {}...".format(videoPath))
     start_time = time.time()
     frameCount = 0
+    frameCntForPlateLog = 0
     frameDecCnt = 1
     m = re.search(r"([0-9]{4}[-_][0-9]{2}[-_][0-9]{2})",videoPath)
     if m:
@@ -131,8 +129,13 @@ while True:
       #ret, frame = vs.read()
       #if end of current video file, then move video file to saveDir, quit loop and get the next video file
       if (ret==False):
-        # We have reached the end of the video clip. Remove all the plate history
-        savedPlatesDict = dict()
+        # We have reached the end of the video clip. Save any residual plates to log
+        # Remove all the plate history
+        if platesReadyForLog == True:
+          plateDictBest = plateHistory.selectTheBestPlates()
+          # generate output files, ie cropped Images, full image and log file
+          plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+          loggedPlateCount += len(plateDictBest)
         plateHistory.clearHistory()
         firstPlateFound = False
 
@@ -149,8 +152,11 @@ while True:
 
       # Decimate the the frames
       frameCount += 1
-      if frameCount % plateLogLatency == 0 and firstPlateFound == True:
+      if firstPlateFound == True:
+        frameCntForPlateLog += 1
+      if frameCntForPlateLog > plateLogLatency:
         plateLogFlag = True
+        frameCntForPlateLog = 0
       if (frameDecCnt == 1):
         ret, frame = vs.retrieve() # retrieve the already grabbed frame
         # process the frame. Find image with license plate
@@ -162,30 +168,19 @@ while True:
           plateHistory.addPlatesToHistory(plateList, plateImagesProcessed, plateBoxes, frame, videoPath, frameCount)
           validImages += 1
           firstPlateFound = True
+          platesReadyForLog = True
 
         # if sufficient time has passed since the last log, then
         # get a dictionary of the best de-duplicated plates,
-        # and remove old plates from history
-        if plateLogFlag == True and firstPlateFound == True:
+        # and remove old plates from history, then save images and update the log
+        if plateLogFlag == True:
+          platesReadyForLog = False
           plateLogFlag = False
           plateDictBest = plateHistory.selectTheBestPlates()
-          plateHistory.removeOldPlatesFromHistory(frameCount)
-
-          # for all the plates in plateDictBest, log the plate if it has not been previously seen
-          # ie the plate is not already in savedPlatesDict
-          plateDictForLog = {}
-          newPlatesFound = False
-          for plateText in plateDictBest:
-            if plateText not in savedPlatesDict.keys():
-              savedPlatesDict[plateText] = frameCount
-              plateDictForLog[plateText] = plateDictBest[plateText]
-              loggedPlateCount += 1
-              newPlatesFound = True
-
-          # If any new plates have been found, then
           # generate output files, ie cropped Images, full image and log file
-          if newPlatesFound == True:
-            plateHistory.logToFile(plateDictForLog, destFolderRootName)
+          plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+          plateHistory.removeOldPlatesFromHistory()
+          loggedPlateCount += len(plateDictBest)
 
         # show the frame and record if the user presses a key
         if conf["display_video_enable"] == "true":
@@ -211,7 +206,7 @@ while True:
   # wait 3 seconds before checking for new video files
   #time.sleep(3)
 # close any open windows
-print("totalNumberOfImages: {}, imagesWithPlates: {}, plateLoggedToFile: {}".format(totalFrameCount, validImages, loggedPlateCount))
+print("totalNumberOfImages: {}, imagesWithPlates: {}, platesLogged: {}".format(totalFrameCount, validImages, loggedPlateCount))
 cv2.destroyAllWindows()
 logFile.close()
 
