@@ -93,6 +93,7 @@ plateHistory = PlateHistory(conf["output_image_path"], conf["output_cropped_imag
 
 quit = False
 plateLogLatency = conf["plateLogLatency"]* conf["videoFrameRate"]
+platesReadyForLog = False
 while True:
   # Get the list of video files
   totalFrameCount = 0

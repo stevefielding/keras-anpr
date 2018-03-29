@@ -127,6 +127,7 @@ plateLogFlag = False
 perfUpdateFlag = False
 firstPlateFound = False
 loggedPlateCount = 0
+platesReadyForLog = False
 while True:
   dtNow = datetime.datetime.now()
   timeNow = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
