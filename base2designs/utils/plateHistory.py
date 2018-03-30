@@ -8,7 +8,7 @@ class PlateHistory:
 
   def __init__(self, output_image_path, output_cropped_image_path, logFile, saveAnnotatedImage):
     self.rollingPlateDict = {}
-    self.savedPlatesDict = {}
+    self.savedPlatesList = []
     self.fileCnt = 1
     self.output_image_path = output_image_path
     self.output_cropped_image_path = output_cropped_image_path
@@ -18,7 +18,7 @@ class PlateHistory:
   # clear the dictionaries. Need to do this at the start of every new video clip
   def clearHistory(self):
     self.rollingPlateDict = {}
-    self.savedPlatesDict = {}
+    self.savedPlatesList = []
 
   # plateList: list of plate texts
   # plateImages: list of cropped plate images
@@ -126,17 +126,21 @@ class PlateHistory:
 
     return (plateDictBest)
 
-  def logToFile(self, plateDict, destFolderRootName, frameCount):
+  def logToFile(self, plateDict, destFolderRootName):
     # for all the plates in plateDict, add to full log if the plate if it has not been previously seen
     # otherwise add to partial log
     plateDictForFullLog = {}
     plateDictForPartialLog = {}
     for plateText in plateDict:
-      if plateText in self.savedPlatesDict.keys():
+      if plateText in self.savedPlatesList:
         plateDictForPartialLog[plateText] = plateDict[plateText]
       else:
-        self.savedPlatesDict[plateText] = frameCount
+        self.savedPlatesList.append(plateText)
         plateDictForFullLog[plateText] = plateDict[plateText]
+
+    # prevent the savedPlateList from getting larger than 1000 entries
+    if len(self.savedPlatesList) > 1000:
+      del(self.savedPlatesList[0:len(self.savedPlatesList)-30])
 
     # Full log. Copy fullImage and plate Image to file and update log file
     for plateText in plateDictForFullLog.keys():
@@ -197,5 +201,5 @@ class PlateHistory:
         time = m.group(1)
       else:
         time = "HH.MM.SS"
-      self.logFile.write("{},{},{},{},{},{},{}\n".format("NO_FULL_IMAGE", "NO_PLATE_IMAGE", date, time, frameNumber, numberOfPlates, plateText))
+      self.logFile.write("{},{},{},{},{},{},{}\n".format("NO_VIDEO", "NO_IMAGE", date, time, frameNumber, numberOfPlates, plateText))
       self.logFile.flush()

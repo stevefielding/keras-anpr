@@ -135,7 +135,7 @@ while True:
         if platesReadyForLog == True:
           plateDictBest = plateHistory.selectTheBestPlates()
           # generate output files, ie cropped Images, full image and log file
-          plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+          plateHistory.logToFile(plateDictBest, destFolderRootName)
           loggedPlateCount += len(plateDictBest)
         plateHistory.clearHistory()
         firstPlateFound = False
@@ -179,7 +179,7 @@ while True:
           plateLogFlag = False
           plateDictBest = plateHistory.selectTheBestPlates()
           # generate output files, ie cropped Images, full image and log file
-          plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+          plateHistory.logToFile(plateDictBest, destFolderRootName)
           plateHistory.removeOldPlatesFromHistory()
           loggedPlateCount += len(plateDictBest)
 

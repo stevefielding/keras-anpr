@@ -155,6 +155,7 @@ while True:
   # Decimate the frames
   if (frameDecCnt == 1):
     ret, frame = vs.retrieve() # retrieve the already grabbed frame
+    frameCopy = frame.copy()
     # process the frame. Find image with license plate
     (licensePlateFound, plateImages, plateBoxes) = findFrameWithPlate.extractPlate(frame)
 
@@ -175,16 +176,16 @@ while True:
       plateDictBest = plateHistory.selectTheBestPlates()
       plateHistory.removeOldPlatesFromHistory()
       # generate output files, ie cropped Images, full image and log file
-      plateHistory.logToFile(plateDictBest, destFolderRootName, frameCount)
+      plateHistory.logToFile(plateDictBest, destFolderRootName)
       loggedPlateCount += len(plateDictBest)
 
     # show the frame and predicted plate text
     if conf["display_video_enable"] == "true":
       if licensePlateFound == True:
         for (plateBox, plateText) in zip(plateBoxes, plateList):
-          cv2.rectangle(frame, plateBox[0], plateBox[1], (0, 255, 0), 2)
-          cv2.putText(frame, plateText, plateBox[0], cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
-      cv2.imshow("Frame", frame)
+          cv2.rectangle(frameCopy, plateBox[0], plateBox[1], (0, 255, 0), 2)
+          cv2.putText(frameCopy, plateText, plateBox[0], cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+      cv2.imshow("Frame", frameCopy)
 
   # update frame decimator count
   if (frameDecCnt == conf["frameDecimationFactor"]):

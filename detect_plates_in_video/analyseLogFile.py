@@ -1,6 +1,7 @@
 # -------------------- analyseLogFile.py -------------------------
 # USAGE
-# python --logFile lplateLogExample.txt -- reportFile lplateReport.txt
+# python analyzeLogFile.py --logFile lplateLogExample.txt --reportFile lplateReport.md
+# python analyzeLogFile.py --logFile ../../datasets/lplates/train/images/lplateLog.txt --reportFile ../../datasets/lplates/train/lplateReport.md
 
 # Process the log file
 # Group license plates that match by at least 5 chars
@@ -16,6 +17,7 @@ import sys
 from operator import itemgetter
 
 MIN_FRAME_GAP_BETWEEN_UNIQUE_PLATES = 1000
+MIN_PLATE_REPS = 1
 
 # construct the argument parser and parse command line arguments
 ap = argparse.ArgumentParser()
@@ -52,14 +54,15 @@ for logLine in logsSplit:
   dates.append(date)
   time = logLine[3]
   frameNum = int(logLine[4])
-  plateTexts = logLine[5:]
+  numberOfPlates = logLine[5]
+  plateTexts = logLine[6:]
   # Create plateDict, and list of all dates
   for plateText in plateTexts:
     if plateText in plateDict:
       # plateText, videoFileName, imageFileName, date, time, frameNumber
-      plateDict[plateText].append([plateText, videoFileName, imageFileName, date, time, frameNum])
+      plateDict[plateText].append([plateText, videoFileName, imageFileName, date, time, frameNum, numberOfPlates])
     else:
-      plateDict[plateText] = [[plateText, videoFileName, imageFileName, date, time, frameNum]]
+      plateDict[plateText] = [[plateText, videoFileName, imageFileName, date, time, frameNum, numberOfPlates]]
 
 # Find first and last date
 dates = sorted(dates)
@@ -106,11 +109,12 @@ for plateText in plateDictDeDuped.keys():
     # For each char position build a histogram of character frequencies
     charDicts = [{}, {}, {}, {}, {}, {}, {}]
     for plateEntry in plateDictDeDuped[plateText]:
+      numberOfPlates = plateEntry[6]
       for (i,char) in enumerate(plateEntry[0]):
         if char in charDicts[i].keys():
-          charDicts[i][char] += 1
+          charDicts[i][char] += numberOfPlates
         else:
-          charDicts[i][char] = 1
+          charDicts[i][char] = numberOfPlates
 
     # for each histogram, sort and then select the most frequently occurring characters
     predPlateText =[]
@@ -180,20 +184,32 @@ for plateText in plateDictPredCopy.keys():
 reportFile = open(args["reportFile"], "w")
 reportFile.write("##### Report for {} to {}  \n".format(firstDate, lastDate))
 sortedKeys = sorted(plateDictDeDuped2.keys())
+lowRepPlateCnt = 0
 for plateText in sortedKeys:
-  reportFile.write("+ {}  \n".format(plateText))
   plateEntries = plateDictDeDuped2[plateText]
   #plateEntries = sorted (plateEntries, key=lambda x:x[3])
   plateEntries = sorted (plateEntries, key = itemgetter(3,4))
+  totalNumPlates = 0
   for plateEntry in plateEntries:
-    # date time plateText videoFileName imageFileName frameNum
-    reportFile.write("    + {} {} {} {} [imageFile](./{}) {}  \n".format(plateEntry[3], plateEntry[4], plateEntry[0],
-                                        plateEntry[1], plateEntry[2], plateEntry[5] ))
+    totalNumPlates += int(plateEntry[6])
+  if totalNumPlates > MIN_PLATE_REPS:
+    reportFile.write("+ {} count: {}  \n".format(plateText, totalNumPlates))
+    for plateEntry in plateEntries:
+      # date time plateText videoFileName imageFileName frameNum
+      if plateEntry[2] == "NO_IMAGE":
+        reportFile.write("    + {} {} {} {} frameNum: {}  \n".format(plateEntry[3], plateEntry[4], plateEntry[0],
+                                          plateEntry[1], plateEntry[5] ))
+      else:
+        reportFile.write("    + {} {} {} {} [imageFile](./{}) frameNum: {}  \n".format(plateEntry[3], plateEntry[4], plateEntry[0],
+                                          plateEntry[1], plateEntry[2], plateEntry[5] ))
+  else:
+    lowRepPlateCnt += 1
 reportFile.close()
 print("[INFO] Deleted {} video sequence duplicates".format(deletedVidSeqDupCnt))
 print("[INFO] Combined {} similar plates".format(combinedSimilarPlateCnt))
+print("[INFO] Removed {} plates with only {} repetition".format(lowRepPlateCnt, MIN_PLATE_REPS))
 print ("[INFO] Log file has {} entries, and {} unique plates".format(logFileNumEntries, len(plateDict.keys())))
-print ("[INFO] After combining similar plates, report file has {} plates".format(len(sortedKeys)))
+print ("[INFO] After combining similar plates, report file has {} plates".format(len(sortedKeys)-lowRepPlateCnt))
 
 
 
