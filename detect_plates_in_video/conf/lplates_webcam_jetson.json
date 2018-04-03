@@ -2,21 +2,22 @@
   #######
   # DATASET SAMPLING CONFIGURATION
   #######
-  "input_video_path": "../../../sunba", # input video files
-  "output_image_path": "../../datasets/sunba/images", # output images
-  "output_cropped_image_path": "../../datasets/sunba/cropped_images", # output cropped images
-  "save_video_path": "../../datasets/sunba/save_video", # saved video files
-  "log_file_name":"lplateLog_2018_04_03.txt", # log file for saving list of plates, frame counts and filename
+  "output_image_path": "../../datasets/lplates_webcam/from_video/images", # output images
+  "output_cropped_image_path": "../../datasets/lplates_webcam//from_video/cropped_images", # output cropped images
+  "save_video_path": "../../datasets/lplates_webcam//from_video/save_video", # saved video files
+  "log_file_name":"lplateLog.txt", # log file for saving list of plates, frame counts and filename
 
   #######
   # Run CONFIGURATION
   #######
   "infinite_main_loop": "false", # enable infinite main loop if detect.py is working with continuous live data from the camera
-  "display_video_enable": "false", # enable display of input video
+  "display_video_enable": "true", # enable display of input video
   "removeOverlay": "false", # remove Sunba overlay text. Overlay can be disabled in Sunba config, so set to false
   "saveAnnotatedImage": "false", # output files from detect.py can optionally be annotated with LP bounding box and LP chars
   "imageDebugEnable": "false", # print images from intermediate stages of the image processing pipeline
-  "move_video_file": "true", # move video file to new location after finished processing
+  "move_video_file": "false", # move video file to new location after finished processing
+  "perfUpdateInterval": 10, # Interval between updates of performance reporting in seconds
+  "target": "jetson", # Code target. Either jetson or pc
 
   #######
   # plate detector CONFIGURATION
@@ -26,7 +27,7 @@
   "plateMargin": 10, # Add an extra margin around the cropped plate image. This allows extra room for image aug during training
   "searchCropFactorX": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
   "searchCropFactorY": 1, # Reduce search area x and y dimensions by this factor. searchCropFactor = 1 = no cropping
-  "frameDecimationFactor": 4, # decimate the frame rate to reduce the processing load
+  "frameDecimationFactor": 1, # decimate the frame rate to reduce the processing load
 
   #######
   # History CONFIGURATION

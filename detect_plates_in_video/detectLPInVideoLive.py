@@ -103,12 +103,13 @@ frameCount = 0
 frameCntForPlateLog = 0
 oldFrameCount = 0
 frameDecCnt = 1
-destFolderRootName = "{}-{}-{}".format(dtNow.year, dtNow.month, dtNow.day)
+destFolderRootName = "{:02}-{:02}-{:02}".format(dtNow.year, dtNow.month, dtNow.day)
 folderController.createDestFolders(destFolderRootName, conf["save_video_path"],
                                    conf["output_image_path"], conf["output_cropped_image_path"])
 
 if conf["target"] == "jetson":
-  vs = cv2.VideoCapture("nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, framerate=(fraction)30/1 ! nvvidconv flip-method=0 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
+  #vs = cv2.VideoCapture("nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)1280, height=(int)720,format=(string)I420, framerate=(fraction)30/1 ! nvvidconv flip-method=0 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink")
+  vs = cv2.VideoCapture("v4l2src device=""/dev/video1"" ! appsink")
 else:
   vs = cv2.VideoCapture(0)
   vs.set(cv2.CAP_PROP_FRAME_WIDTH,1280 )
@@ -130,7 +131,7 @@ loggedPlateCount = 0
 platesReadyForLog = False
 while True:
   dtNow = datetime.datetime.now()
-  timeNow = "{}.{}.{}".format(dtNow.hour, dtNow.minute, dtNow.second)
+  timeNow = "{:02}.{:02}.{:02}".format(dtNow.hour, dtNow.minute, dtNow.second)
   # read the next frame from the video stream
   ret = vs.grab() # grab frame but do not decode
 
@@ -202,7 +203,7 @@ while True:
     frameCountDelta = frameCount - oldFrameCount
     fps = frameCountDelta / processingTime
     oldFrameCount = frameCount
-    print("[INFO] Processed {} frames in {} seconds. Frame rate: {} Hz".format(frameCountDelta, processingTime, fps))
+    print("[INFO] Processed {} frames in {:.2f} seconds. Frame rate: {:.2f} Hz".format(frameCountDelta, processingTime, fps))
     print("[INFO] validImages: {}, frameCount: {}".format(validImages, frameCount))
 
 
