@@ -132,7 +132,7 @@ for plateText in plateDictDeDuped.keys():
 # same video clip are possibly duplicates
 # Assume that similar plateText within 1000 frames of each other are
 # duplicates, and remove the duplicates
-removeDuplicatesFromVideoClip = False
+removeDuplicatesFromVideoClip = True
 if removeDuplicatesFromVideoClip == False:
   plateDictDeDuped2 = plateDictPred
   deletedVidSeqDupCnt = 0
