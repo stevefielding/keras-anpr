@@ -54,7 +54,7 @@ for logLine in logsSplit:
   dates.append(date)
   time = logLine[3]
   frameNum = int(logLine[4])
-  numberOfPlates = logLine[5]
+  numberOfPlates = int(logLine[5])
   plateTexts = logLine[6:]
   # Create plateDict, and list of all dates
   for plateText in plateTexts:
@@ -132,52 +132,57 @@ for plateText in plateDictDeDuped.keys():
 # same video clip are possibly duplicates
 # Assume that similar plateText within 1000 frames of each other are
 # duplicates, and remove the duplicates
-plateDictDeDuped2 = {}
-plateDictPredCopy = copy.deepcopy(plateDictPred)
-for plateText in plateDictPredCopy.keys():
-  plateDictSubGroup = {}
-  if len(plateDictPredCopy[plateText]) == 1:
-    # only one entry for this plateText, so simply copy, no need to de-dupe
-    plateDictDeDuped2[plateText] = plateDictPredCopy[plateText]
-  else:
-    # more than one entry, so create a temporary videoFilename sub-group
-    for plateEntry in plateDictPredCopy[plateText]:
-      if plateEntry[1] in plateDictSubGroup.keys():
-        plateDictSubGroup[plateEntry[1]].append(plateEntry)
-      else:
-        plateDictSubGroup[plateEntry[1]] = [plateEntry]
-
-    # process the videoFilename sub-group
-    for imageFileName in plateDictSubGroup:
-      plateEntries = plateDictSubGroup[imageFileName]
-      if len(plateEntries) == 1:
-        # For this videoFile there is only one entry in the sub-group,
-        # so need to sort, just add to the dictionary
-        if plateText in plateDictDeDuped2.keys():
-          plateDictDeDuped2[plateText].append(plateEntries[0])
+removeDuplicatesFromVideoClip = False
+if removeDuplicatesFromVideoClip == False:
+  plateDictDeDuped2 = plateDictPred
+  deletedVidSeqDupCnt = 0
+else:
+  plateDictDeDuped2 = {}
+  plateDictPredCopy = copy.deepcopy(plateDictPred)
+  for plateText in plateDictPredCopy.keys():
+    plateDictSubGroup = {}
+    if len(plateDictPredCopy[plateText]) == 1:
+      # only one entry for this plateText, so simply copy, no need to de-dupe
+      plateDictDeDuped2[plateText] = plateDictPredCopy[plateText]
+    else:
+      # more than one entry, so create a temporary videoFilename sub-group
+      for plateEntry in plateDictPredCopy[plateText]:
+        if plateEntry[1] in plateDictSubGroup.keys():
+          plateDictSubGroup[plateEntry[1]].append(plateEntry)
         else:
-          plateDictDeDuped2[plateText] = plateEntries
-      else:
+          plateDictSubGroup[plateEntry[1]] = [plateEntry]
 
-        # sort the multiple entries by frame number
-        # Add the entry with the smallest frame number to the dict
-        # and add subsequent entries only if they are separated by a
-        # sufficient number of frames
-        deletedVidSeqDupCnt = 0
-        plateEntriesSorted = sorted(plateEntries, key=lambda x: x[5])
-        for (i,plateEntry) in enumerate(plateEntriesSorted):
-          if i == 0:
-            frameNumBase = plateEntry[5]
-            # add the first entry
-            if plateText in plateDictDeDuped2.keys():
+      # process the videoFilename sub-group
+      for imageFileName in plateDictSubGroup:
+        plateEntries = plateDictSubGroup[imageFileName]
+        if len(plateEntries) == 1:
+          # For this videoFile there is only one entry in the sub-group,
+          # so need to sort, just add to the dictionary
+          if plateText in plateDictDeDuped2.keys():
+            plateDictDeDuped2[plateText].append(plateEntries[0])
+          else:
+            plateDictDeDuped2[plateText] = plateEntries
+        else:
+
+          # sort the multiple entries by frame number
+          # Add the entry with the smallest frame number to the dict
+          # and add subsequent entries only if they are separated by a
+          # sufficient number of frames
+          deletedVidSeqDupCnt = 0
+          plateEntriesSorted = sorted(plateEntries, key=lambda x: x[5])
+          for (i,plateEntry) in enumerate(plateEntriesSorted):
+            if i == 0:
+              frameNumBase = plateEntry[5]
+              # add the first entry
+              if plateText in plateDictDeDuped2.keys():
+                plateDictDeDuped2[plateText].append(plateEntry)
+              else:
+                plateDictDeDuped2[plateText] = [plateEntry]
+            elif plateEntry[5] > frameNumBase + MIN_FRAME_GAP_BETWEEN_UNIQUE_PLATES:
+              frameNumBase = plateEntry[5]
               plateDictDeDuped2[plateText].append(plateEntry)
             else:
-              plateDictDeDuped2[plateText] = [plateEntry]
-          elif plateEntry[5] > frameNumBase + MIN_FRAME_GAP_BETWEEN_UNIQUE_PLATES:
-            frameNumBase = plateEntry[5]
-            plateDictDeDuped2[plateText].append(plateEntry)
-          else:
-            deletedVidSeqDupCnt += 1
+              deletedVidSeqDupCnt += 1
 
 
 # generate the report file. Sort by plate, then by date and time
